@@ -1,6 +1,5 @@
-# RiskMaster Project
 
-## Project Overview
+# RiskMaster Project
 
 RiskMaster is an analytics-based technology solution stack designed to address the challenges faced by the Indian banking sector in predicting and preventing defaults. The project aims to mitigate financial instability in major banks by leveraging Large Language Models (LLMs) for comprehensive analysis and reporting.
 
@@ -65,6 +64,29 @@ LoanID, Age, Income, LoanAmount, CreditScore, MonthsEmployed, NumCreditLines, In
    - Endpoint: `/top_ten_new_loans`
    - Description: Retrieves the top ten new loan data from the MongoDB database in reverse order of insertion.
 
+## Chain of Thoughts Integration
+
+RiskMaster incorporates Chain of Thought (CoT) prompting to guide the Large Language Models (LLMs) in thinking step by step. This strategy involves providing the model with a few-shot exemplar outlining the reasoning process, allowing the model to follow a similar chain of thought when responding to prompts. CoT prompting is particularly effective for complex tasks requiring a series of reasoning steps.
+
+### CoT Prompt Example:
+
+**Q:** Assess the risk of loan default for a 56-year-old applicant with an income of ₹85,994, seeking a loan amount of ₹50,587, a credit score of 520, and 80 months of employment history.
+
+**A:** Similar to our approach in assessing Joe's egg count, we start with the given attributes. Considering age, income, loan amount, credit score, and employment history, we can delve into the nuances of potential default risks. Utilizing these parameters, the LLM performs a step-by-step analysis, providing a reasoned prediction.
+
+RiskMaster employs CoT prompting in tasks such as predicting loan default, allowing for more structured and reasoned responses.
+
+### Automatic Chain-of-Thought (Auto-CoT)
+
+RiskMaster leverages Automatic Chain-of-Thought (Auto-CoT) to automate the CoT prompting process. This approach involves question clustering and demonstration sampling stages:
+
+1. **Question Clustering:** Partition questions of a given dataset into clusters.
+2. **Demonstration Sampling:** Select a representative question from each cluster and generate its reasoning chain using Zero-Shot-CoT with simple heuristics.
+
+Auto-CoT automates the generation of reasoning chains, eliminating the need for manual crafting of examples and enhancing the efficiency of the system.
+
 ## Conclusion
 
-RiskMaster stands as a powerful solution to the pressing issue of loan defaults in the Indian banking sector. By combining advanced analytics, responsible lending practices, and user-friendly reporting, the project aims to contribute to the enhanced financial stability of major banks and the overall economic landscape.
+RiskMaster, enriched with CoT prompting, represents a significant advancement in enhancing the reasoning capabilities of Large Language Models. By enabling models to think step by step and explain their reasoning, the project aims to improve performance on complex tasks related to loan default prediction.
+
+
