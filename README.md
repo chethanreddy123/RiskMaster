@@ -1,4 +1,3 @@
-
 # RiskMaster Project
 
 RiskMaster is an analytics-based technology solution stack designed to address the challenges faced by the Indian banking sector in predicting and preventing defaults. The project aims to mitigate financial instability in major banks by leveraging Large Language Models (LLMs) for comprehensive analysis and reporting.

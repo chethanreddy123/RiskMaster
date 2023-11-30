@@ -239,3 +239,18 @@ async def get_top_ten_new_loans():
         raise HTTPException(status_code=500, detail=f"Error retrieving top ten new loans: {str(e)}")
 
 
+@app.post("/get_user_data/")
+async def get_user_data(user_data: dict):
+    try:
+        # Retrieve the user data from MongoDB
+        user_data = LoanData.find_one(user_data)
+
+        # Remove the MongoDB object ID from the user data
+        user_data.pop("_id")
+
+        # Return the user data
+        return user_data
+
+    except Exception as e:
+        # Return error message if an exception occurs
+        raise HTTPException(status_code=500, detail=f"Error retrieving user data: {str(e)}")
