@@ -29,6 +29,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.preprocessing import LabelEncoder 
 from langchain import PromptTemplate
+from pymongo import MongoClient
 
 def predict_with_models(sample_input):
 
@@ -54,6 +55,9 @@ llm = GooglePalm(
     max_output_tokens=1024,
     google_api_key='AIzaSyA1fu-ob27CzsJozdr6pHd96t5ziaD87wM'
 )
+
+MongoCli = MongoClient("mongodb+srv://chethan1234:1234@cluster0.uou14qn.mongodb.net/?retryWrites=true&w=majority")
+LoanData = MongoCli["RiskMaster"]["LoanData"]
 
 
 db = SQLDatabase.from_uri("sqlite:///./Loan_default.db")
@@ -202,9 +206,36 @@ def get_insigths_user(user_input: dict):
         )
     ))
     
-    
+
+@app.post("/store_user_data/")
+async def store_user_data(user_data: dict):
+    try:
+        # Insert user data into MongoDB
+        result = LoanData.insert_one(user_data)
+
+        # Return success message
+        return {"message": "User data stored successfully!", "inserted_id": str(result.inserted_id)}
+
+    except Exception as e:
+        # Return error message if an exception occurs
+        raise HTTPException(status_code=500, detail=f"Error storing user data: {str(e)}")
     
 
 
+@app.get("/top_ten_new_loans")
+async def get_top_ten_new_loans():
+    try:
+        # Retrieve the top ten new loan data from MongoDB in reverse order
+        top_ten_loans = list(LoanData.find().sort([("_id", -1)]).limit(10))
+
+        for i in top_ten_loans:
+            # Remove the MongoDB object ID from each loan data
+            i.pop("_id")
+        # Return the top ten new loan data
+        return top_ten_loans
+
+    except Exception as e:
+        # Return error message if an exception occurs
+        raise HTTPException(status_code=500, detail=f"Error retrieving top ten new loans: {str(e)}")
 
 
