@@ -28,7 +28,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.preprocessing import LabelEncoder 
-
+from langchain import PromptTemplate
 
 def predict_with_models(sample_input):
 
@@ -126,6 +126,37 @@ Thought: I should look at the tables in the database to see what I can query.
 
 
 
+template = """Task: Perform an in-depth analysis as an expert banker and loan default predictor based on the user data provided. Generate a detailed report assessing the applicant's ability to repay the loan, estimating the number of installments they might skip, and other relevant insights.
+
+UserData: {query}
+
+User Attributes Description:
+
+1. LoanID: A unique identifier assigned to each loan application.
+2. Age: The age of the loan applicant, indicating the number of years since birth.
+3. Income: The total income of the applicant, representing their financial earnings.
+4. LoanAmount: The amount of money requested by the applicant as a loan.
+5. CreditScore: A numerical representation of the creditworthiness of the applicant.
+6. MonthsEmployed: The duration, in months, for which the applicant has been employed.
+7. NumCreditLines: The number of credit lines the applicant currently holds.
+8. InterestRate: The rate at which interest is charged on the loan amount.
+9. LoanTerm: The duration of the loan in months, indicating the repayment period.
+10. DTIRatio (Debt-to-Income Ratio): The ratio of the applicant's total debt to their total income.
+11. Education: The educational qualification of the applicant (e.g., Bachelor's, Master's, High School).
+12. EmploymentType: The type of employment status of the applicant (e.g., Full-time, Unemployed).
+13. MaritalStatus: The marital status of the applicant (e.g., Married, Divorced, Single).
+14. HasMortgage: Indicates whether the applicant has an existing mortgage (Yes/No).
+15. HasDependents: Indicates whether the applicant has dependents (Yes/No).
+16. LoanPurpose: The purpose for which the loan is requested, providing context to the intended use of funds.
+17. HasCoSigner: Indicates whether there is a co-signer for the loan (Yes/No).
+
+Analysis and Recommendations:
+ """
+
+prompt_template = PromptTemplate(
+    input_variables=["query"],
+    template=template
+)
 
 agent_executor = create_sql_agent(
     llm=llm,
@@ -165,7 +196,12 @@ def predict_loan(user_input: dict):
     
 @app.post("/get_insigths_user/")
 def get_insigths_user(user_input: dict):
-    pass
+        return (llm(
+        prompt_template.format(
+            query=user_input
+        )
+    ))
+    
     
     
 
