@@ -13,3 +13,5 @@ langchain-google-genai
 pandas
 PyMuPDF
 pytesseract
+grpcio
+grpcio-tools
