@@ -9,7 +9,7 @@ pydantic==2.3.0
 scikit-learn==1.3.2
 xgboost==2.0.2
 langchain-experimental==0.0.42
-pandaslangchain-google-genai
+langchain-google-genai
 pandas
 PyMuPDF
 pytesseract
