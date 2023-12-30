@@ -1,35 +1,77 @@
-from langchain.llms import GooglePalm
-from langchain import PromptTemplate, LLMChain
+from langchain_google_genai import GoogleGenerativeAI
+from langchain import PromptTemplate
 from langchain.agents import create_sql_agent
 from langchain.agents.agent_toolkits import SQLDatabaseToolkit
-from langchain_experimental.sql import SQLDatabaseChain
-from langchain.llms.openai import OpenAI
-from langchain.agents import AgentExecutor
 from langchain import PromptTemplate
 from langchain.utilities import SQLDatabase
-from langchain import PromptTemplate, LLMChain
+from fastapi.responses import JSONResponse
+from langchain import PromptTemplate
 from fastapi import  HTTPException, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
-from xgboost import XGBClassifier
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.linear_model import LogisticRegression
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.naive_bayes import GaussianNB
 import joblib
 import pandas as pd
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
-from xgboost import XGBClassifier
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.linear_model import LogisticRegression
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.naive_bayes import GaussianNB
 from sklearn.preprocessing import LabelEncoder 
 from langchain import PromptTemplate
 from pymongo import MongoClient
+from langchain_experimental.agents.agent_toolkits import create_pandas_dataframe_agent
+from fastapi.responses import FileResponse
+from fastapi import FastAPI, File, Form, UploadFile
+import PIL.Image
+import io
+import google.generativeai as genai
+import fitz  # PyMuPDF
+import pytesseract
+from PIL import Image
+
+
+GOOGLE_API_KEY = 'AIzaSyA1fu-ob27CzsJozdr6pHd96t5ziaD87wM'
+genai.configure(api_key=GOOGLE_API_KEY)
+
+api_key = "AIzaSyA1fu-ob27CzsJozdr6pHd96t5ziaD87wM"
+llm = GoogleGenerativeAI(model="models/gemini-pro", google_api_key=api_key)
+
+model_image = genai.GenerativeModel('gemini-pro-vision')
+
+MongoCli = MongoClient("mongodb+srv://chethan1234:1234@cluster0.uou14qn.mongodb.net/?retryWrites=true&w=majority")
+LoanData = MongoCli["RiskMaster"]["LoanData"]
+
+
+db = SQLDatabase.from_uri("sqlite:///./Loan_default.db")
+toolkit = SQLDatabaseToolkit(db=db , llm=llm)
+
+def structure_json(json_data):
+    structured_data = {
+        "input": json_data.get("input"),
+        "output": json_data.get("output"),
+        "intermediate_steps": []
+    }
+
+    for i in json_data.get("intermediate_steps"):
+        structured_data['intermediate_steps'].append(i[0].log)
+
+    return structured_data
+
+
+def extract_text_from_first_page(pdf_file):
+    # Open the PDF
+    doc = fitz.open(stream=pdf_file, filetype="pdf")
+    page = doc[0]  # Extract text from the first page
+
+    # If the PDF contains text directly
+    if page.get_text():
+        return page.get_text()
+
+    # If the PDF contains images, use OCR
+    text = ""
+    for img in page.get_images(full=True):
+        xref = img[0]
+        base_image = doc.extract_image(xref)
+        image_bytes = base_image["image"]
+        image = Image.open(io.BytesIO(image_bytes))
+        text += pytesseract.image_to_string(image)
+
+    return text
 
 def predict_with_models(sample_input):
 
@@ -48,22 +90,6 @@ def predict_with_models(sample_input):
     trained_models = joblib.load('XGBClassifier_model.joblib')
     y_pred = model.predict(data)
     return y_pred
-
-llm = GooglePalm(
-    model='models/text-bison-001',
-    temperature=0,
-    max_output_tokens=1024,
-    google_api_key='AIzaSyA1fu-ob27CzsJozdr6pHd96t5ziaD87wM'
-)
-
-MongoCli = MongoClient("mongodb+srv://chethan1234:1234@cluster0.uou14qn.mongodb.net/?retryWrites=true&w=majority")
-LoanData = MongoCli["RiskMaster"]["LoanData"]
-
-
-db = SQLDatabase.from_uri("sqlite:///./Loan_default.db")
-toolkit = SQLDatabaseToolkit(db=db , llm=llm)
-
-
 
 PROMPT = '''You are an agent designed to interact with a SQL database.
 
@@ -122,13 +148,10 @@ If the question does not seem related to the database, just return "I don't know
 If you cannot find a way to answer the question, just return the best answer you can find after trying at least three times.
 '''
 
-
 Suffix = '''Begin!
 Question: {input}
 Thought: I should look at the tables in the database to see what I can query.
 {agent_scratchpad}'''
-
-
 
 template = """Task: Perform an in-depth analysis as an expert banker and loan default predictor based on the user data provided. Generate a detailed report assessing the applicant's ability to repay the loan, estimating the number of installments they might skip, and other relevant insights.
 
@@ -170,6 +193,29 @@ agent_executor = create_sql_agent(
     suffix = Suffix
     
 )
+
+
+df = pd.read_csv("Loan_default.csv")
+
+agent_pandas = create_pandas_dataframe_agent(
+    llm, 
+    df, 
+    verbose=True,
+    return_intermediate_steps=True)
+
+
+def handle_query(agent, query):
+    if "graph" in query.lower() or "plot" in query.lower():
+        # Handle graph-related query
+        # Assuming 'agent' can process the query and generate a graph
+        graph_result = agent(query + " Note: save the plot as plot.png")
+        refined_result = structure_json(graph_result)
+        refined_result['intermediate_steps'] = str(refined_result['intermediate_steps'])
+        return FileResponse("plot.png", headers=refined_result)
+    else:
+        return structure_json(agent(query))
+    
+
 
 app = FastAPI()
 
@@ -254,3 +300,60 @@ async def get_user_data(user_data: dict):
     except Exception as e:
         # Return error message if an exception occurs
         raise HTTPException(status_code=500, detail=f"Error retrieving user data: {str(e)}")
+
+
+@app.post("/get_pandas_agent_response/")
+async def get_pandas_agent_response(query: dict):
+
+    try:
+        # Retrieve the response from the pandas agent
+        response = handle_query(agent_pandas, query['query'])
+
+        # Return the response
+        return response
+
+    except Exception as e:
+        # Return error message if an exception occurs
+        raise HTTPException(status_code=500, detail=f"Error retrieving pandas agent response: {str(e)}")
+    
+
+
+@app.post("/image_analysis/")
+async def image_analysis(file: UploadFile = File(...), text: str = Form(...)):
+
+    print("Image analysis request received")
+    # Read image file
+    image_content = await file.read()
+    image = PIL.Image.open(io.BytesIO(image_content))
+
+    # Process with Google Gemini Vision Pro
+
+    response = model_image.generate_content([text, image], stream=True)
+    response.resolve()
+
+    return {
+        "response" : str(response.text)
+    }
+
+
+@app.post("/pdf_loan_analysis/")
+async def pdf_loan_analysis(file: UploadFile = File(...)):
+    # Read PDF file
+    contents = await file.read()
+
+    # Extract text from PDF
+    extracted_text = extract_text_from_first_page(contents)
+
+    # Process with Google Gemini Pro
+    response = llm(
+        prompt_template.format(
+            query="Given below is extracted text of document related for applying a loan get the relavent information so that it helps in the loan process:\n f{extracted_text}"
+        )
+    )
+
+    
+    important_info = "Processed text to extract loan-relevant information"
+
+    return JSONResponse(content={"important_info": response})
+
+
