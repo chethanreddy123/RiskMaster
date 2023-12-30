@@ -16,3 +16,4 @@ pytesseract
 grpcio
 grpcio-tools
 tabulate
+python-multipart
